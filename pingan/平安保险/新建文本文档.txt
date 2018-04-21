@@ -1,0 +1,10 @@
+pandas用groupby可能会爆内存
+https://zhuanlan.zhihu.com/p/25686876?utm_source=com.miui.notes&utm_medium=social
+刷kaggle练习赛
+
+
+https://zhuanlan.zhihu.com/p/35652890
+这个比赛的知乎
+
+https://www.kaggle.com/batzner/gini-coefficient-an-intuitive-explanation
+讲Gini的
