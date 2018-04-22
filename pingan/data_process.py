@@ -36,6 +36,7 @@ import numpy as np
 """
 
 
+
 if __name__=='__main__':
     print ('Load data......')
     train_data=pd.read_csv('PINGAN-2018-train_demo.csv')
@@ -84,8 +85,14 @@ if __name__=='__main__':
     train_data = pd.concat([train_data, pd.get_dummies(train_data["hour"], prefix='hour')], axis=1)
     train_data = pd.concat([train_data, pd.get_dummies(train_data["CALLSTATE"], prefix='CALLSTATE')], axis=1)
     train_data.drop(['TERMINALNO','TIME','TRIP_ID','CALLSTATE','weekday','month','hour'],axis=1,inplace=True)
-    print (train_data)
-    train_data.to_csv('processed_total_data.csv',index=False)
+
+    #把Y值挪到最后一列
+    cols=list(train_data.columns)
+    cols.insert(len(cols)-1,cols.pop(cols.index('Y')))
+    print (cols)    #这个是目前的特征和Y值
+    #print (train_data.reindex(columns=cols))
+    #这个copy都不管用啊，只能这样了，可读性有点低
+    train_data.reindex(columns=cols).to_csv('processed_total_data.csv',index=False)
 
 
 #先做数据预处理，比如归一化，抽特征等等，整全了再划分train和validation
