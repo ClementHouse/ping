@@ -1,0 +1,2 @@
+train.csv和test.csv是一样的，只是为了调bug。
+线下只能用train_demo那个csv，然后如果重新抽特征调整模型，先在data_process（数据预处理）和baseline（跑算法）中改，这个改好了再移到main里，main只是提交debug用的

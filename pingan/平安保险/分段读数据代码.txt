@@ -1,0 +1,13 @@
+之前群里大佬给的分段代码：
+slices = 4
+    for s in range(slices):
+        print("********* section ",s," **********")
+        df = pd.read_csv(path_train)
+        df.columns = ["TERMINALNO", "TIME", "TRIP_ID", "LONGITUDE", "LATITUDE", "DIRECTION", "HEIGHT", "SPEED", "CALLSTATE", "Y"]
+        print('***Train data loaded')
+        slice_num=int(df.TERMINALNO.max()/slices)
+        start = slice_num * s
+        end = slice_num * (s+1)
+        if s == slices-1:
+            end += slices 
+        df = df[(df['TERMINALNO']>start) & (df['TERMINALNO']<=end)]
