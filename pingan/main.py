@@ -21,11 +21,11 @@ from sklearn.model_selection import train_test_split
 
 #预测的时候，就不做啥操作了，直接测然后求平均，看看效果
 
-# path_train = "/data/dm/train.csv"  # 训练文件
-# path_test = "/data/dm/test.csv"  # 测试文件
+path_train = "/data/dm/train.csv"  # 训练文件
+path_test = "/data/dm/test.csv"  # 测试文件
 
-path_train = "train.csv"  # 训练文件
-path_test = "test.csv"  # 测试文件
+# path_train = "train.csv"  # 训练文件
+# path_test = "test.csv"  # 测试文件
 
 path_test_out = "model/"  # 预测结果输出路径为model/xx.csv,有且只能有一个文件并且是CSV格式。
 
@@ -44,6 +44,7 @@ def find_most_frequence(train_data,columnname):
     train_data_thiscol.index=train_data_thiscol["TERMINALNO"]
     train_data_thiscol.drop(["num","TERMINALNO"],axis=1,inplace=True)
     #print (train_data_thiscol)
+    train_data_thiscol = train_data_thiscol.select_dtypes(include=['uint64']).apply(pd.to_numeric, downcast='unsigned')   #数据还得重新压一下，太怕哪里内存炸了
     return train_data_thiscol
 
 
@@ -59,8 +60,8 @@ def mem_usage(pandas_obj):
 def data_process_train(path_train):
     #print('Load data......')
     train_data = pd.read_csv(path_train)
-    print(train_data.info(memory_usage='deep'))
-    print(mem_usage(train_data))
+    #print(train_data.info(memory_usage='deep'))
+    #print(mem_usage(train_data))
 
     #trip_id没有用，去掉
     train_data.drop(['TRIP_ID'], axis=1, inplace=True)
@@ -87,8 +88,8 @@ def data_process_train(path_train):
     train_data_float = train_data.select_dtypes(include=['float']).apply(pd.to_numeric, downcast='float')
     train_data_int = train_data.select_dtypes(include=['int64']).apply(pd.to_numeric, downcast='unsigned')
     train_data=pd.concat([train_data_float,train_data_int],axis=1)
-    print(train_data.info(memory_usage='deep'))
-    print(mem_usage(train_data))
+    #print(train_data.info(memory_usage='deep'))
+    #print(mem_usage(train_data))
 
     # 以上是每个用户可以共同弄的操作，还不用group by。下面group by
 
@@ -106,15 +107,16 @@ def data_process_train(path_train):
     #print (hour)
     #print (month)
     train_data=pd.concat([train_data_mean,callstate,weekday,hour,month],axis=1)
-
+    # print(train_data.info(memory_usage='deep'))
+    # print(mem_usage(train_data))
     # 方向，高度，速度，都做归一化
     min_max_scaler = preprocessing.MinMaxScaler()
     train_data[["DIRECTION", "HEIGHT", "SPEED"]] = min_max_scaler.fit_transform(
         train_data[["DIRECTION", "HEIGHT", "SPEED"]])
-
+    train_data[["DIRECTION", "HEIGHT", "SPEED"]] = train_data.select_dtypes(include=['float64']).apply(pd.to_numeric, downcast='float')   #归一化之后数据格式就又大了，还得再压缩......
     #print (train_data)
-    print(train_data.info(memory_usage='deep'))
-    print(mem_usage(train_data))
+    #print(train_data.info(memory_usage='deep'))
+    #print(mem_usage(train_data))
 
     #速度缺失值处理
     # train_data["SPEED"].replace(-1, np.nan, inplace=True)  # inplace就是直接在train_data上改了，train_data就会变，不用再赋值回去了
@@ -142,23 +144,24 @@ def data_process_train(path_train):
     gc.collect()
     #print ("there1")
     #print (train_data)
+    #print(train_data.info(memory_usage='deep'))
     return train_data
 
 def data_process_test(path_test):
-    # print('Load data......')
+    #print('Load data......')
     test_data = pd.read_csv(path_test)
-    print(test_data.info(memory_usage='deep'))
-    print(mem_usage(test_data))
+    #print(test_data.info(memory_usage='deep'))
+    #print(mem_usage(test_data))
 
-    # trip_id没有用，去掉
+    #trip_id没有用，去掉
     test_data.drop(['TRIP_ID'], axis=1, inplace=True)
 
-    # 方向缺失值处理
+    #方向缺失值处理
     test_data["DIRECTION"].replace(-1, np.nan, inplace=True)  # inplace就是直接在test_data上改了，test_data就会变，不用再赋值回去了
     test_data["DIRECTION"].replace(np.nan, test_data["DIRECTION"].mean(0),
                                     inplace=True)
 
-    # 时间处理
+    #时间处理
     test_columns = list(test_data.columns)  # 获取列名
     test_columns.append("weekday")
     test_columns.append("month")
@@ -170,41 +173,42 @@ def data_process_test(path_test):
     test_data["month"] = test_data["TIME"].dt.month
     test_data["hour"] = test_data["TIME"].dt.hour
 
-    # 数据压缩，把需要加的列，缺失值处理完再弄这个
+
+    #数据压缩，把需要加的列，缺失值处理完再弄这个
     test_data_float = test_data.select_dtypes(include=['float']).apply(pd.to_numeric, downcast='float')
     test_data_int = test_data.select_dtypes(include=['int64']).apply(pd.to_numeric, downcast='unsigned')
-    test_data = pd.concat([test_data_float, test_data_int], axis=1)
-    print(test_data.info(memory_usage='deep'))
-    print(mem_usage(test_data))
+    test_data=pd.concat([test_data_float,test_data_int],axis=1)
+    #print(test_data.info(memory_usage='deep'))
+    #print(mem_usage(test_data))
 
     # 以上是每个用户可以共同弄的操作，还不用group by。下面group by
 
-    # float这种，每个用户取平均数(经纬度，速度，高度，方向)
-    test_data_mean = test_data[["LONGITUDE", "LATITUDE", "DIRECTION", "HEIGHT", "SPEED"]].groupby(
-        test_data["TERMINALNO"]).mean()
-    # print (test_data_mean)
+    #float这种，每个用户取平均数(经纬度，速度，高度，方向)
+    test_data_mean = test_data[["LONGITUDE","LATITUDE","DIRECTION","HEIGHT","SPEED"]].groupby(test_data["TERMINALNO"]).mean()
+    #print (test_data_mean)
 
-    # 类别这种，每个用户取这个用户中出现最频繁的（电话状态，月，小时，周）
-    callstate = find_most_frequence(test_data, "CALLSTATE")
-    weekday = find_most_frequence(test_data, "weekday")
+    #类别这种，每个用户取这个用户中出现最频繁的（电话状态，月，小时，周）
+    callstate = find_most_frequence(test_data,"CALLSTATE")
+    weekday = find_most_frequence(test_data,"weekday")
     hour = find_most_frequence(test_data, "hour")
     month = find_most_frequence(test_data, "month")
-    # print (callstate)
-    # print (weekday)
-    # print (hour)
-    # print (month)
-    test_data = pd.concat([test_data_mean, callstate, weekday, hour, month], axis=1)
-
+    #print (callstate)
+    #print (weekday)
+    #print (hour)
+    #print (month)
+    test_data=pd.concat([test_data_mean,callstate,weekday,hour,month],axis=1)
+    # print(test_data.info(memory_usage='deep'))
+    # print(mem_usage(test_data))
     # 方向，高度，速度，都做归一化
     min_max_scaler = preprocessing.MinMaxScaler()
     test_data[["DIRECTION", "HEIGHT", "SPEED"]] = min_max_scaler.fit_transform(
         test_data[["DIRECTION", "HEIGHT", "SPEED"]])
+    test_data[["DIRECTION", "HEIGHT", "SPEED"]] = test_data.select_dtypes(include=['float64']).apply(pd.to_numeric, downcast='float')   #归一化之后数据格式就又大了，还得再压缩......
+    #print (test_data)
+    #print(test_data.info(memory_usage='deep'))
+    #print(mem_usage(test_data))
 
-    # print (test_data)
-    print(test_data.info(memory_usage='deep'))
-    print(mem_usage(test_data))
-
-    # 速度缺失值处理
+    #速度缺失值处理
     # test_data["SPEED"].replace(-1, np.nan, inplace=True)  # inplace就是直接在test_data上改了，test_data就会变，不用再赋值回去了
     # test_data["SPEED"].replace(np.nan, test_data["SPEED"].mean(0),
     #                                 inplace=True)
@@ -222,8 +226,9 @@ def data_process_test(path_test):
     del month
 
     gc.collect()
-    # print ("there1")
-    # print (test_data)
+    #print ("there1")
+    #print (test_data)
+    #print(test_data.info(memory_usage='deep'))
     return test_data
 
 def process():
@@ -263,7 +268,7 @@ def process():
     # train
     gbm = lgb.train(params,
                     lgb_train,
-                    num_boost_round=10,
+                    num_boost_round=3000,
                     valid_sets=lgb_eval)
 
     # print('Save model...')
@@ -274,19 +279,22 @@ def process():
     # predict
 
 
-    out=pd.DataFrame(X_test["TERMINALNO"],columns=["TERMINALNO"])   #单独取出来一列是Series，要变成dataframe
-    X_test.drop(["TERMINALNO"],axis=1,inplace=True)
-    y_pred = gbm.predict(X_test, num_iteration=gbm.best_iteration)
-    out.reindex(columns=["TERMINALNO","y_pred"])
-    out["y_pred"]=y_pred
-    out_result=pd.DataFrame(out.groupby(["TERMINALNO"])["y_pred"].mean(),columns=["TERMINALNO","y_pred"])
-    out_result["TERMINALNO"]=out_result.index
-
-    #print (out_result)
-    del out
-    gc.collect()
-    #out.drop_duplicates('TERMINALNO',inplace=True)  #对ID去重，其实这个不应该这么去重，觉得应该平均，或者统计一下才对
-    out_result.to_csv(path_test_out+"result.csv",index=False,header=["Id","Pred"])   #每个用户id做了个平均
+    #out=pd.DataFrame(X_test["TERMINALNO"],columns=["TERMINALNO"])   #单独取出来一列是Series，要变成dataframe
+    #X_test.drop(["TERMINALNO"],axis=1,inplace=True)
+    out=pd.DataFrame(X_test.index)
+    #print (out)
+    out["y_pred"]=gbm.predict(X_test, num_iteration=gbm.best_iteration)
+    #print (out)
+    # out.reindex(columns=["TERMINALNO","y_pred"])
+    # out["y_pred"]=y_pred
+    # out_result=pd.DataFrame(out.groupby(["TERMINALNO"])["y_pred"].mean(),columns=["TERMINALNO","y_pred"])
+    # out_result["TERMINALNO"]=out_result.index
+    #
+    # #print (out_result)
+    # del out
+    # gc.collect()
+    # #out.drop_duplicates('TERMINALNO',inplace=True)  #对ID去重，其实这个不应该这么去重，觉得应该平均，或者统计一下才对
+    out.to_csv(path_test_out+"result.csv",index=False,header=["Id","Pred"])   #每个用户id做了个平均
 
     print ("finish!!!")
 
