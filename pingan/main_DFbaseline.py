@@ -6,13 +6,14 @@ import xgboost as xgb
 import pickle
 from math import radians, cos, sin, asin, sqrt
 
+#wt:这个函数用来计算，两个经纬度之间的距离，单位是米。就是两个坐标之间有多少米。用haversine算。返回的是相距多少米
 def haversine1(lon1, lat1, lon2, lat2):  # 经度1，纬度1，经度2，纬度2 （十进制度数）
     """
     Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
     """
     # 将十进制度数转化为弧度
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])    #map,根据提供的函数对指定的序列做映射
     # haversine公式
     dlon = lon2 - lon1
     dlat = lat2 - lat1
@@ -30,23 +31,29 @@ path_test = "/data/dm/test.csv"  # 测试文件路径
 # read train data
 data = pd.read_csv(path_train)
 train1 = []
+#wt:这一句的意思是数有多少个用户（线上的没看，给的demo是100个，可能线上人很多吧）
 alluser = data['TERMINALNO'].nunique()
 
 # Feature Engineer, 对每一个用户生成特征:
 # trip特征, record特征(数量,state等),
 # 地理位置特征(location,海拔,经纬度等), 时间特征(星期,小时等), 驾驶行为特征(速度统计特征等)
 
+#wt:对于一维数组或者列表，unique函数去除其中重复的元素，并按元素由大到小返回一个新的无元素重复的元组或者列表
 for item in data['TERMINALNO'].unique():
 
     print('user NO:',item)
     temp = data.loc[data['TERMINALNO'] == item,:]
-    temp.index = range(len(temp))
+    temp.index = range(len(temp))     #wt:temp是这一用户的所有数据，然后把index重新弄成了
 
     # trip 特征
+    #wt 每个用户有多少个行程
     num_of_trips = temp['TRIP_ID'].nunique()
 
     # record 特征
+    # wt:shape返回这个dataframe的维度信息，0就是数有多少条记录
     num_of_records = temp.shape[0]
+
+    #wt：这个是算一个用户中，每种电话状态占的比例（算的是百分比）
     num_of_state = temp[['TERMINALNO','CALLSTATE']]
     nsh = num_of_state.shape[0]
     num_of_state_0 = num_of_state.loc[num_of_state['CALLSTATE']==0].shape[0]/float(nsh)
@@ -58,11 +65,13 @@ for item in data['TERMINALNO'].unique():
 
 
     ### 地点特征
+    #wt:只取了这个用户第一个点的经纬度啊，觉得这里有改善空间（比如，一个用户的不同trip起点的平均？）
     startlong = temp.loc[0, 'LONGITUDE']
     startlat  = temp.loc[0, 'LATITUDE']
     hdis1 = haversine1(startlong, startlat, 113.9177317,22.54334333)  # 距离某一点的距离
 
     # 时间特征
+    #wt:算一个用户的信息中，每个时间占的比例（有多少是8点的，有多少是9点的巴拉巴拉......）
     # temp['weekday'] = temp['TIME'].apply(lambda x:datetime.datetime.fromtimestamp(x).weekday())
     temp['hour'] = temp['TIME'].apply(lambda x:datetime.datetime.fromtimestamp(x).hour)
     hour_state = np.zeros([24,1])
@@ -70,9 +79,9 @@ for item in data['TERMINALNO'].unique():
         hour_state[i] = temp.loc[temp['hour']==i].shape[0]/float(nsh)
 
     # 驾驶行为特征
-    mean_speed = temp['SPEED'].mean()
-    var_speed = temp['SPEED'].var()
-    mean_height = temp['HEIGHT'].mean()
+    mean_speed = temp['SPEED'].mean()      #wt:速度的均值
+    var_speed = temp['SPEED'].var()        #wt:速度的无偏方差（均方差）
+    mean_height = temp['HEIGHT'].mean()    #wt:高度的均值（觉得这里也可以改进，高度应该算方差的，因为路况可能起起伏伏......）
 
     # 添加label
     target = temp.loc[0, 'Y']
