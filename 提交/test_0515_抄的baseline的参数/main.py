@@ -5,9 +5,6 @@ import pandas as pd
 import datetime
 import gc
 from math import radians,cos,sin,asin,sqrt
-from lightgbm.sklearn import LGBMRegressor
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import train_test_split
 
 """
 按照每个用户来抽特征：（这个用比例很好，直接归一化了，省事）
@@ -133,50 +130,31 @@ def lgb_predict():
     user_num=total_data.shape[0]
     X_train = total_data.iloc[:,1:-1]     #刨出去用户的id和Y
     y_train=total_data["Y"]
-    #train去交叉验证选参数，选出来参数之后，迭代的时候算结果用val
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2,
-                                                        random_state=0)
-
-    #grid_search的交叉验证
-    print ("start grid search!")
-    param_test={
-        'num_leaves':range(5,80,5),
-        'learning_rate':0.005,
-        'n_estimators':range(100,800,100),
-        'max_bin':[55],
-        'bagging_fraction':[0.8],
-        'bagging_freq':[5],
-        'feature_fraction':[0.2319],
-        'feature_fraction_seed':[9],
-        'bagging_seed':[9],
-        'min_data_in_leaf':[6],
-        'min_sum_hessian_in_leaf':[11]
-    }
-    estimator=LGBMRegressor(
-        objective='regression',
-        #'num_leaves':5,
-        #'learning_rate':0.01,
-        #'n_estimators':720,
-        silent=True
-
-    )
-    gsearch=GridSearchCV(estimator,param_grid=param_test,scoring='neg_mean_squared_error',cv=3)
-    gsearch.fit(X_train,y_train)
-    #print (gsearch.best_params_)
-
     lgb_train = lgb.Dataset(X_train, y_train)
-    lgb_eval = lgb.Dataset(X_val, y_val)
+    #lgb_eval = lgb.Dataset(X_val, y_val, reference=lgb_train,categorical_feature=["CALLSTATE"])
     del X_train
-    # del X_val
+    #del X_val
     del y_train
-    del X_val
-    del y_val
     del total_data
-    # del y_val
+    #del y_val
     gc.collect()
     # specify your configurations as a dict
-    params={'objective': 'regression'}
-    params.update(gsearch.best_params_)
+    params={
+        'objective':'regression',
+        'num_leaves':5,
+        'learning_rate':0.01,
+        'n_estimators':720,
+        'max_bin':55,
+        'bagging_fraction':0.8,
+        'bagging_freq':5,
+        'feature_fraction':0.2319,
+        'feature_fraction_seed':9,
+        'bagging_seed':9,
+        'min_data_in_leaf':6,
+        'min_sum_hessian_in_leaf':11
+    }
+
+
     # params = {
     #     'task': 'train',
     #     'boosting_type': 'gbdt',
@@ -191,13 +169,12 @@ def lgb_predict():
     #     'verbose':0
     # }
 
-    #print (params)
     print('Start training...')
     # train
     gbm = lgb.train(params,
                     lgb_train,
                     num_boost_round=4000,
-                    valid_sets=lgb_eval)
+                    valid_sets=lgb_train)
 
     # print('Save model...')
     # save model to file
@@ -214,8 +191,7 @@ def lgb_predict():
         num_iteration=gbm.best_iteration)
     out.to_csv(path_test_out+"result.csv",index=False,header=["Id","Pred"])   #每个用户id做了个平均
 
-    #print(user_num)
-    print (params)
+    print(user_num)
     print ("finish!!!")
 
 
