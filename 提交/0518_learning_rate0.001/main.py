@@ -1,4 +1,4 @@
-﻿#coding:utf-8
+#coding:utf-8
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -141,7 +141,7 @@ def lgb_predict():
     print ("start grid search!")
     param_test={
         'num_leaves':range(5,80,5),
-        'learning_rate':[0.005],
+        'learning_rate':[0.001],
         'n_estimators':range(100,800,100),
         'max_bin':[55],
         'bagging_fraction':[0.8],
@@ -215,7 +215,8 @@ def lgb_predict():
     out.to_csv(path_test_out+"result.csv",index=False,header=["Id","Pred"])   #每个用户id做了个平均
 
     #print(user_num)
-    print (params)
+    print (params['num_leaves'])
+    print (params['n_estimators'])
     print ("finish!!!")
 
 

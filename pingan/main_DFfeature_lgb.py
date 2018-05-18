@@ -134,49 +134,51 @@ def lgb_predict():
     X_train = total_data.iloc[:,1:-1]     #刨出去用户的id和Y
     y_train=total_data["Y"]
     #train去交叉验证选参数，选出来参数之后，迭代的时候算结果用val
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2,
-                                                        random_state=0)
-
-    #grid_search的交叉验证
-    print ("start grid search!")
-    param_test={
-        'num_leaves':range(5,80,5),
-        'learning_rate':0.005,
-        'n_estimators':range(100,800,100),
-        'max_bin':[55],
-        'bagging_fraction':[0.8],
-        'bagging_freq':[5],
-        'feature_fraction':[0.2319],
-        'feature_fraction_seed':[9],
-        'bagging_seed':[9],
-        'min_data_in_leaf':[6],
-        'min_sum_hessian_in_leaf':[11]
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2,random_state=0)
+    del total_data
+    gc.collect()
+    # specify your configurations as a dict
+    #下面开始改参数跑着玩，学习学习如何调参数
+    print("start grid search!")
+    param_test = {
+        'num_leaves': range(5, 80, 5),
+        'learning_rate': [0.001],
+        'n_estimators': range(100, 800, 100),
+        'max_bin': [55],
+        'bagging_fraction': [0.8],
+        'bagging_freq': [5],
+        'feature_fraction': [0.2319],
+        'feature_fraction_seed': [9],
+        'bagging_seed': [9],
+        'min_data_in_leaf': [6],
+        'min_sum_hessian_in_leaf': [11]
     }
-    estimator=LGBMRegressor(
+    estimator = LGBMRegressor(
         objective='regression',
-        #'num_leaves':5,
-        #'learning_rate':0.01,
-        #'n_estimators':720,
+        # 'num_leaves':5,
+        # 'learning_rate':0.01,
+        # 'n_estimators':720,
         silent=True
 
     )
-    gsearch=GridSearchCV(estimator,param_grid=param_test,scoring='neg_mean_squared_error',cv=3)
-    gsearch.fit(X_train,y_train)
-    #print (gsearch.best_params_)
-
-    lgb_train = lgb.Dataset(X_train, y_train)
-    lgb_eval = lgb.Dataset(X_val, y_val)
-    del X_train
-    # del X_val
-    del y_train
-    del X_val
-    del y_val
-    del total_data
-    # del y_val
-    gc.collect()
-    # specify your configurations as a dict
-    params={'objective': 'regression'}
-    params.update(gsearch.best_params_)
+    gsearch = GridSearchCV(estimator, param_grid=param_test, scoring='neg_mean_squared_error', cv=3)
+    gsearch.fit(X_train, y_train)
+    params=gsearch.best_params_
+    #这个是python的scikit-learn的API，scikit learn的，好像多参数，和params列表不一样的
+    model_lgb = lgb.LGBMRegressor(
+        objective='regression',
+        num_leaves=params['num_leaves'],
+        learning_rate=params['learning_rate'],
+        n_estimators=params['n_estimators'],
+        max_bin=params['max_bin'],
+        bagging_fraction=params['bagging_fraction'],
+        bagging_freq=params['bagging_freq'],
+        feature_fraction=params['feature_fraction'],
+        feature_fraction_seed=params['feature_fraction_seed'],
+        bagging_seed=params['bagging_seed'],
+        min_data_in_leaf=params['min_data_in_leaf'],
+        min_sum_hessian_in_leaf=params['min_sum_hessian_in_leaf']
+    )
     # params = {
     #     'task': 'train',
     #     'boosting_type': 'gbdt',
@@ -194,10 +196,7 @@ def lgb_predict():
     #print (params)
     print('Start training...')
     # train
-    gbm = lgb.train(params,
-                    lgb_train,
-                    num_boost_round=4000,
-                    valid_sets=lgb_eval)
+    model_lgb.fit(X_train,y_train,eval_set=[(X_val,y_val)])
 
     # print('Save model...')
     # save model to file
@@ -209,13 +208,14 @@ def lgb_predict():
     out=X_test[["user"]]
     #print (out)
     #out["y_pred"]=gbm.predict(X_test[["SPEED","hour","weekday","LONGITUDE","LATITUDE","DIRECTION","HEIGHT","CALLSTATE"]], num_iteration=gbm.best_iteration)
-    out["y_pred"] = gbm.predict(
-        X_test.iloc[:,1:-1],
-        num_iteration=gbm.best_iteration)
+    out["y_pred"] = model_lgb.predict(
+        X_test.iloc[:,1:-1])
     out.to_csv(path_test_out+"result.csv",index=False,header=["Id","Pred"])   #每个用户id做了个平均
 
     #print(user_num)
-    print (params)
+
+    print (params['num_leaves'])
+    print (params['n_estimators'])
     print ("finish!!!")
 
 
