@@ -142,7 +142,7 @@ def lgb_predict():
     print("start grid search!")
     param_test = {
         'num_leaves': range(5, 80, 5),
-        'learning_rate': [0.01],
+        'learning_rate': [0.005],
         'n_estimators': range(100, 800, 100),
         'max_bin': [55],
         'bagging_fraction': [0.8],
